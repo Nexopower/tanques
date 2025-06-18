@@ -1,0 +1,41 @@
+# Archivos generados por Unity
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+
+# Archivos de proyecto de Unity
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.userprefs
+
+# Archivos de Asset Store
+[Aa]ssets/AssetStoreTools*
+
+# Archivos de autoguardado
+*.autosave
+
+# Archivos de caché
+.vs/
+.vscode/
+*.pidb
+*.pdb
+
+# Archivos de sistema operativo
+.DS_Store*
+Thumbs.db
+
+# Archivos de paquetes NuGet
+packages/
+
+# Archivos de compilación de Android/iOS
+[Aa]ssets/Plugins/Android/
+[Aa]ssets/Plugins/iOS/
+
+# Archivos de caché de Unity
+/[Aa]ssets/AssetStoreAsset* 
