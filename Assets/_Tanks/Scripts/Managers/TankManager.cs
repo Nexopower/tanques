@@ -1,5 +1,6 @@
 ﻿using System;
 using UnityEngine;
+using Tanks.Complete;
 [Serializable] //Hace que los atributos aparezcan en el inspector (si no los escondemos)
 public class TankManager
 {
@@ -7,50 +8,59 @@ public class TankManager
     //gestiona el comportamiento de los tanques y si los jugadores tienen control sobre el tanque
     //en los distintos momentos del juego
     public Color m_PlayerColor; //Color para el tanque
+    public int m_Deaths = 0;
+
     public Transform m_SpawnPoint; //Posición y direción en la que se generaráel tanque
     [HideInInspector] public int m_PlayerNumber; //Especifica con qué jugadorestá actuando el Game Manager
     [HideInInspector] public string m_ColoredPlayerText; //String que reprsenta el color del tanque
     [HideInInspector] public GameObject m_Instance; //Refernecia a la instancia del tanque cuando se crea
     [HideInInspector] public int m_Wins; //Número de victorias del jugador
 
+    private TankHealth m_Health;
+
     private TankMovement m_Movement; //Referencia al script de movimiento deltanque. Utilizado para deshabilitar y habilitar el control
     private TankShooting m_Shooting; //Referencia al script de disparo del tanque. Utilizado para deshabilitar y habilitar el control
     private GameObject m_CanvasGameObject; //Utilizado para deshabilitar el UIdel mundo durante als fases de inicio y fin de cada ronda
-public void Setup()
-{
-    // Obtener referencias de los componentes
-    m_Movement = m_Instance.GetComponent<TankMovement>();
-    m_Shooting = m_Instance.GetComponent<TankShooting>();
-    m_CanvasGameObject = m_Instance.GetComponentInChildren<Canvas>().gameObject;
-
-    // Asignar número de jugador
-    m_Movement.m_PlayerNumber = m_PlayerNumber;
-    m_Shooting.m_PlayerNumber = m_PlayerNumber;
-
-    // Crear texto coloreado (ej: "<color=#FF0000>PLAYER 1</color>")
-    m_ColoredPlayerText = "<color=#" + ColorUtility.ToHtmlStringRGB(m_PlayerColor) + ">PLAYER " + m_PlayerNumber + "</color>";
-
-    // Cambiar solo el material "TankColor" en todas las piezas
-    MeshRenderer[] renderers = m_Instance.GetComponentsInChildren<MeshRenderer>();
-    foreach (MeshRenderer renderer in renderers)
+    public void Setup()
     {
-        // Buscar el material "TankColor" en los materiales asignados a este renderer
-        Material[] materials = renderer.materials;
-        for (int i = 0; i < materials.Length; i++)
+        // Obtener referencias de los componentes
+        m_Movement = m_Instance.GetComponent<TankMovement>();
+        m_Shooting = m_Instance.GetComponent<TankShooting>();
+        m_Health = m_Instance.GetComponent<TankHealth>();
+
+        m_Health.m_TankManager = this;
+
+        m_CanvasGameObject = m_Instance.GetComponentInChildren<Canvas>().gameObject;
+
+        // Asignar número de jugador
+        m_Movement.m_PlayerNumber = m_PlayerNumber;
+        m_Shooting.m_PlayerNumber = m_PlayerNumber;
+
+        // Crear texto coloreado (ej: "<color=#FF0000>PLAYER 1</color>")
+        m_ColoredPlayerText = "<color=#" + ColorUtility.ToHtmlStringRGB(m_PlayerColor) + ">PLAYER " + m_PlayerNumber + "</color>";
+
+        // Cambiar solo el material "TankColor" en todas las piezas
+        MeshRenderer[] renderers = m_Instance.GetComponentsInChildren<MeshRenderer>();
+        foreach (MeshRenderer renderer in renderers)
         {
-            // Comparar sin "(Instance)" que Unity añade
-            if (materials[i].name.StartsWith("TankColor"))
+            // Buscar el material "TankColor" en los materiales asignados a este renderer
+            Material[] materials = renderer.materials;
+            for (int i = 0; i < materials.Length; i++)
             {
-                // Clonar el material para evitar afectar otros objetos
-                Material newMaterial = new Material(materials[i]);
-                newMaterial.color = m_PlayerColor;
-                materials[i] = newMaterial;
-                break; // Salir del bucle tras encontrar el material
+                // Comparar sin "(Instance)" que Unity añade
+                if (materials[i].name.StartsWith("TankColor"))
+                {
+                    // Clonar el material para evitar afectar otros objetos
+                    Material newMaterial = new Material(materials[i]);
+                    newMaterial.color = m_PlayerColor;
+                    materials[i] = newMaterial;
+                    break; // Salir del bucle tras encontrar el material
+                }
             }
+            renderer.materials = materials; // Aplicar cambios
         }
-        renderer.materials = materials; // Aplicar cambios
     }
-}
+
     //Usado durante la fases del juego en las que el jugador no debe poder controlar el tanque
     public void DisableControl()
     {

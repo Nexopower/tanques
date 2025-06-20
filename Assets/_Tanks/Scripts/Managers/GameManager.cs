@@ -5,11 +5,19 @@ using UnityEngine.UI;
 using TMPro;
 public class GameManager : MonoBehaviour
 {
+    public float m_MaxGameTime = 240f; // 4 minutos en segundos
+    public TextMeshProUGUI m_TimerText;
+
+
+    private float m_ElapsedTime; // Tiempo total transcurrido desde el inicio de la partida
+    private bool m_GameEnded = false;
+
     public int m_NumRoundsToWin = 5; //Número de rondas que un jugador debe ganar para ganar el juego
     public float m_StartDelay = 3f; //Delay entre las fases de RoundStarting yRoundPlaying
     public float m_EndDelay = 3f; //Delay entre las fases de RoundPlaying y RoundEnding
     public CameraControl m_CameraControl; //Referencia al sccript de CameraControl
     public TextMeshProUGUI m_MessageText; //Referencia al texto para mostrar mensajes
+    private bool[] m_PreviousTankStates;
 
     public GameObject m_TankPrefab; //Referencia al Prefab del Tanque
     public TankManager[] m_Tanks; //Array de TankManagers para controlar cadatanque
@@ -24,6 +32,13 @@ public class GameManager : MonoBehaviour
         m_StartWait = new WaitForSeconds(m_StartDelay);
         m_EndWait = new WaitForSeconds(m_EndDelay);
         SpawnAllTanks(); //Generar tanques
+        m_PreviousTankStates = new bool[m_Tanks.Length];
+        for (int i = 0; i < m_Tanks.Length; i++)
+        {
+            m_PreviousTankStates[i] = m_Tanks[i].m_Instance.activeSelf;
+        }
+
+
         SetCameraTargets(); //Ajustar cámara
         StartCoroutine(GameLoop()); //Iniciar juego
     }
@@ -61,11 +76,26 @@ public class GameManager : MonoBehaviour
         yield return StartCoroutine(RoundPlaying());
         //Cuando finalice RoundPlaying, empiezo con RoundEnding y no retorno hasta que finalice
         yield return StartCoroutine(RoundEnding());
+        if (m_ElapsedTime >= m_MaxGameTime)
+        {
+            DisableTankControl(); // Detener movimiento y disparo
+
+            m_MessageText.text = "¡TIEMPO AGOTADO!\nAMBOS JUGADORES PIERDEN.";
+
+            // Mostrar por unos segundos
+            yield return m_EndWait;
+            m_GameEnded = true;
+            // Detener completamente la partida (no volver a GameLoop)
+            yield break;
+    
+        }
+
+
         //Si aún no ha ganado ninguno
         if (m_GameWinner != null)
         {
             //Si hay un ganador, reinicio el nivel
-            SceneManager.LoadScene(0);
+
         }
         else
         {
@@ -89,6 +119,7 @@ public class GameManager : MonoBehaviour
     }
     private IEnumerator RoundPlaying()
     {
+
         // Cuando empiece la ronda dejo que los tanques se muevan.
         EnableTankControl();
         // Borro el texto de la pantalla.
@@ -96,9 +127,26 @@ public class GameManager : MonoBehaviour
         // Mientras haya más de un tanque...
         while (!OneTankLeft())
         {
+            // Revisamos cambios de estado para detectar muertes
+            for (int i = 0; i < m_Tanks.Length; i++)
+            {
+                bool isAlive = m_Tanks[i].m_Instance.activeSelf;
+
+                // Si antes estaba vivo y ahora no, entonces murió
+                if (m_PreviousTankStates[i] && !isAlive)
+                {
+                    m_Tanks[i].m_Deaths++;
+                    Debug.Log($"Tanque {m_Tanks[i].m_PlayerNumber} ha muerto. Total: {m_Tanks[i].m_Deaths}");
+                }
+
+                // Actualizamos el estado para la siguiente vuelta
+                m_PreviousTankStates[i] = isAlive;
+            }
             // ... vuelvo al frame siguiente.
             yield return null;
         }
+        
+        
     }
     private IEnumerator RoundEnding()
     {
@@ -177,7 +225,15 @@ public class GameManager : MonoBehaviour
         }
         // Si hay un ganador del juego, cambio el mensaje entero para reflejarlo.
         if (m_GameWinner != null)
-            message = m_GameWinner.m_ColoredPlayerText + " GANA EL JUEGO!";
+        {
+            m_GameEnded = true;
+            int minutes = Mathf.FloorToInt(m_ElapsedTime / 60f);
+            int seconds = Mathf.FloorToInt(m_ElapsedTime % 60f);
+            message = $"{m_GameWinner.m_ColoredPlayerText} GANA EL JUEGO!\n\n" +
+                      $"PUNTUACIÓN: {m_GameWinner.m_Wins}\n" +
+                      $"TIEMPO TOTAL: {minutes:00}:{seconds:00}";
+        }
+
         return message;
     }
     // Para resetear los tanques (propiedaes, posiciones, etc.).
@@ -204,4 +260,48 @@ public class GameManager : MonoBehaviour
             m_Tanks[i].DisableControl();
         }
     }
+    private void Update()
+    {
+        if (m_GameEnded)
+        {
+            return; // No seguir si el juego terminó
+        }
+
+        m_ElapsedTime += Time.deltaTime;
+
+        float timeLeft = Mathf.Max(m_MaxGameTime - m_ElapsedTime, 0f);
+        int minutes = Mathf.FloorToInt(timeLeft / 60f);
+        int seconds = Mathf.FloorToInt(timeLeft % 60f);
+        m_TimerText.text = $"TIEMPO: {minutes:00}:{seconds:00}";
+
+        // Definimos colores intermedios
+        Color green = Color.green;
+        Color yellow = Color.yellow;
+        Color orange = new Color(1f, 0.5f, 0f);
+        Color red = Color.red;
+
+        float t = m_ElapsedTime / m_MaxGameTime;
+
+        // 3 etapas de cambio de color
+        if (t < 0.33f)
+        {
+            // Verde a amarillo
+            float lerpValue = t / 0.33f;
+            m_TimerText.color = Color.Lerp(green, yellow, lerpValue);
+        }
+        else if (t < 0.66f)
+        {
+            // Amarillo a naranja
+            float lerpValue = (t - 0.33f) / 0.33f;
+            m_TimerText.color = Color.Lerp(yellow, orange, lerpValue);
+        }
+        else
+        {
+            // Naranja a rojo
+            float lerpValue = (t - 0.66f) / 0.34f; // Lo que queda hasta 1.0
+            m_TimerText.color = Color.Lerp(orange, red, lerpValue);
+        }
+    
+    }
+
 }
